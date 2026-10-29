@@ -1,6 +1,6 @@
 body {
     font-family: sans-serif;
-    background-color: #222;
+    background-color: #17172D;
     color: #fff;
     display: flex;
     justify-content: center;
@@ -22,24 +22,135 @@ body {
     display: grid;
     grid-template-columns: repeat(5, 70px);
     grid-template-rows: repeat(5, 70px);
-    gap: 1px;
-    background-color: #444;
-    border: 2px solid #666;
+    gap: 2px;
+    background-color: #59596e;
+    border: 1px solid #000000;
     margin: 0 auto 15px auto;
     width: max-content;
 }
-/* マップの1マス分 */
+
 .cell {
     width: 70px;
     height: 70px;
-    background-color: #111;
+    background-color: #48416A;
     display: flex;
     justify-content: center;
     align-items: center;
     font-size: 20px;
 }
 
-#message {
-    font-size: 14px;
-    color: #aaa;
+#help-button {
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 22px;
+    cursor: pointer;
+    z-index: 1000;
+}
+
+#help-panel {
+    position: fixed;
+    top: 65px;
+    right: 15px;
+    width: 260px;
+    padding: 15px;
+    background: #777a7a;
+    color: white;
+    border: 2px solid #888;
+    border-radius: 10px;
+    z-index: 1000;
+}
+
+#help-panel p {
+    margin: 10px 0;
+}
+
+#close-help {
+    cursor: pointer;
+}
+
+.character-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+}
+
+#encyclopediaButton {
+    position: fixed;
+    top: 20px;
+    right: 70px;
+    z-index: 1000;
+    padding: 10px 16px;
+    background: #26384a;
+    color: white;
+    border: 1px solid #64748b;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.encyclopedia-panel {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 24px;
+    box-sizing: border-box;
+
+    background: #17212b;
+    color: #f1f5f9;
+    border: 2px solid #64748b;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+
+    z-index: 2000;
+}
+
+#closeEncyclopedia {
+    float: right;
+    padding: 4px 12px;
+    font-size: 24px;
+    background: #334155;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.encyclopedia-tabs {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.encyclopedia-tabs button {
+    flex: 1;
+    padding: 10px;
+    background: #334155;
+    color: white;
+    border: 1px solid #64748b;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.encyclopedia-tabs button:hover,
+#encyclopediaButton:hover {
+    background: #475569;
+}
+
+
+/* モンスター図鑑の一覧 */
+.monster-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
 }

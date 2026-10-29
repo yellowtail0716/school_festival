@@ -1,14 +1,75 @@
 import { map, MAP_WIDTH, MAP_HEIGHT, changeRandomMap } from './map.js';
 
+const playerImage = new Image();
+playerImage.src = "./images/club.png";
+const enemy_eImage = new Image();
+enemy_eImage.src = "./images/fish.png";
+const enemy_sImage = new Image();
+enemy_sImage.src = "./images/gun_ebi.png";
+const itemImage = new Image();
+itemImage.src = "./images/takara.png";
+
+
+ // 図鑑の要素を取得
+const encyclopediaButton = document.getElementById("encyclopediaButton");
+const encyclopediaPanel = document.getElementById("encyclopediaPanel");
+const closeEncyclopedia = document.getElementById("closeEncyclopedia");
+
+const monsterTab = document.getElementById("monsterTab");
+const itemTab = document.getElementById("itemTab");
+const encyclopediaContent = document.getElementById("encyclopediaContent");
+
+// 図鑑を開く
+encyclopediaButton.addEventListener("click", () => {
+    encyclopediaPanel.style.display = "block";
+});
+
+// 図鑑を閉じる
+closeEncyclopedia.addEventListener("click", () => {
+    encyclopediaPanel.style.display = "none";
+});
+
 // カメラに表示するマスの数
 const VIEW_WIDTH = 5;
 const VIEW_HEIGHT = 5;
+
+
+const itemData = [
+    {
+        name: "回復薬",
+        effect: "HPを2割回復する"
+    },
+    {
+        name: "貝",
+        effect: "満腹度を100回復する"
+    }
+];
+
+const monsterData = [
+    {
+        name: "青い魚",
+        hp: 5,
+        attack: 2,
+        description: "上下左右を攻撃"
+    },
+    {
+        name: "武装エビ",
+        hp: 8,
+        attack: 3,
+        description: "上下左右２マスを攻撃"
+    }
+];
 
 // --- ゲームの状態 ---
 const player = {
     x: -1, y: -1,
     hp: 10, maxHp: 10,
-    hunger: 100, maxHunger: 100
+    hunger: 100, maxHunger: 100,
+    level: 1,
+    exp: 0,
+    atk: 1,
+    nextExp: 5,
+    inventory: []
 };
 
 const stairs = { x: -1, y: -1 };
@@ -16,27 +77,81 @@ const stairs = { x: -1, y: -1 };
 const enemies = [];
 const items = [];
 let floor = 1;
-const maxFloor = 5;
+const maxFloor = 20;
 
-// --- 指定した座標にプレイヤー、敵、階段、アイテムがいないかチェックする関数 ---
+
+// モンスター図鑑を表示
+monsterTab.addEventListener("click", () => {
+    encyclopediaContent.innerHTML = `
+        <h3>モンスター図鑑</h3>
+        <div class="monster-list">
+            ${monsterData.map(monster => `
+                <div class="monster-card">
+                    <h4>${monster.name}</h4>
+                    <p>効果：${monster.description}</p>
+                </div>
+            `).join("")}
+        </div>
+    `;
+});
+
+// アイテム図鑑を表示
+
+itemTab.addEventListener("click", () => {
+    encyclopediaContent.innerHTML = `
+        <h3>アイテム図鑑</h3>
+        <div class="monster-list">
+            ${itemData.map(item => `
+                <div class="monster-card">
+                    <h4>${item.name}</h4>
+                    <p>効果：${item.effect}</p>
+                </div>
+            `).join("")}
+        </div>
+    `;
+});
+
+
+// インベントリの何番目かを指定して使う関数
+function useItem(index) {
+    if (index < 0 || index >= player.inventory.length) {
+        return;
+    }
+
+    let item = player.inventory[index];
+
+    if (item.type === "potion") {
+        player.hp = Math.min(player.hp + Math.ceil(player.maxHp * 0.4),player.maxHp);
+        addMessage(`${item.name}を使った！ HPが回復した！`);
+    } else if (item.type === "food") {
+        player.hunger = Math.min(player.maxHunger, player.hunger + item.restore);
+        addMessage(`${item.name}を食べた！ お腹が満たされた！`);
+    }
+
+    // インベントリから削除
+    player.inventory.splice(index, 1);
+    
+    // アイテムを使ったら1ターン経過させる
+    drawGame();
+}
+// 指定した座標をチェックする関数
 function isCellEmpty(x, y) {
     if (map[y][x] === 1) return false; // 壁ならNG
-    if (player.x === x && player.y === y) return false; // プレイヤーがいたらNG
-    if (stairs.x === x && stairs.y === y) return false; // 階段がいたらNG
-    
-    // ほかの敵がいないか
+    if (player.x === x && player.y === y) return false;
+    if (stairs.x === x && stairs.y === y) return false;
+    // ほかの敵
     for (let e of enemies) {
         if (e.hp > 0 && e.x === x && e.y === y) return false;
     }
-    // ほかのアイテムがいないか
+    // ほかのアイテム
     for (let i of items) {
         if (i.x === x && i.y === y) return false;
     }
 
-    return true; // どこも被っていなければOK！
+    return true; // どこも被ってない
 }
 
-// --- ランダムな空きマスを探す関数 ---
+// ランダムな空きマスを探す関数
 function getRandomEmptyPosition() {
     const emptyCells = [];
 
@@ -49,7 +164,7 @@ function getRandomEmptyPosition() {
     }
 
     if (emptyCells.length === 0) {
-        throw new Error("配置できる床がありません！");
+        throw new Error("床が配置できません");
     }
 
     const index = Math.floor(Math.random() * emptyCells.length);
@@ -63,25 +178,39 @@ Object.assign(player, getRandomEmptyPosition());
 Object.assign(stairs, getRandomEmptyPosition());
 
 // 敵を2体配置
+
 for (let i = 0; i < 2; i++) {
     const pos = getRandomEmptyPosition();
+    let isRanged = Math.random() < 0.5;
+
+    // 敵のレベルを設定
+    let enemyLevel = floor;
+
     enemies.push({
         x: pos.x,
         y: pos.y,
-        hp: 3,
-        attack: 1
+        level: enemyLevel,
+        hp: 3 + (enemyLevel - 1) * 2,
+        attack: Math.max(1, Math.floor(enemyLevel / 2)),
+        exp: enemyLevel + 1,
+        type: isRanged ? "ranged" : "melee",
+        symbol: isRanged ? "S" : "E"
     });
 }
 
-// 回復薬を配置
-const potionPos = getRandomEmptyPosition();
-items.push({
-    x: potionPos.x,
-    y: potionPos.y,
-    type: "potion",
-    heal: 5
+
+// 配置
+let iPos = getRandomEmptyPosition();
+let itemType = Math.random() < 0.5 ? "potion" : "food";
+let itemName = itemType === "potion" ? "回復薬" : "貝";
+items.push({ 
+    x: iPos.x, 
+    y: iPos.y, 
+    type: itemType, 
+    name: itemName,
+    restore: 100    // 満腹度回復量
 });
-// --- メッセージログ追加用の便利関数 ---
+// メッセージログ関数
 function addMessage(text) {
     const logBox = document.getElementById("log-box");
     logBox.innerHTML += `<br>${text}`;
@@ -111,10 +240,12 @@ function drawGame() {
             cell.className = "cell";
 
             if (map[mapY][mapX] === 1) {
-                cell.style.backgroundColor = "#707070";
+                cell.style.backgroundColor ="#575658";
             } else if (player.x === mapX && player.y === mapY) {
-                cell.textContent = "@";
-                cell.style.color = "#ff0";
+                const img = document.createElement("img");
+                img.src = playerImage.src;
+                img.className = "character-image";
+                cell.appendChild(img);
             } else if (stairs.x === mapX && stairs.y === mapY) {
                 cell.textContent = ">";
                 cell.style.color = "#0ff";
@@ -124,8 +255,10 @@ function drawGame() {
                 // アイテムを描画
                 for (let i = 0; i < items.length; i++) {
                     if (items[i].x === mapX && items[i].y === mapY) {
-                        cell.textContent = "H";
-                        cell.style.color = "#0f0";
+                        const img = document.createElement("img");
+                        img.src = itemImage.src;
+                        img.className = "character-image";
+                        cell.appendChild(img);
                         drawn = true;
                         break;
                     }
@@ -139,8 +272,18 @@ function drawGame() {
                             enemies[i].y === mapY &&
                             enemies[i].hp > 0
                         ) {
-                            cell.textContent = "E";
-                            cell.style.color = "#f00";
+                            if (enemies[i].symbol === "E"){
+                                const img = document.createElement("img");
+                                img.src = enemy_eImage.src;
+                                img.className = "character-image";
+                                cell.appendChild(img);
+                            }else if (enemies[i].symbol === "S"){
+                                const img = document.createElement("img");
+                                img.src = enemy_sImage.src;
+                                img.className = "character-image";
+                                cell.appendChild(img);
+                            };
+
                             break;
                         }
                     }
@@ -158,9 +301,38 @@ function drawGame() {
         `${player.hunger}/${player.maxHunger}`;
 
     document.getElementById("floor").textContent = floor;
+    document.getElementById("level").textContent = player.level;
+    document.getElementById("exp").textContent = player.exp;
+    document.getElementById("nextExp").textContent = player.nextExp;
+    const invListText = document.getElementById("inventoryList");
+    if (player.inventory.length === 0) {
+        invListText.textContent = "なし";
+    } else {
+        // 持ち物を表示する
+        let text = "";
+        for (let i = 0; i < player.inventory.length; i++) {
+            text += `[${i + 1}] ${player.inventory[i].name} `;
+        }
+        invListText.textContent = text;
+    }
 }
 
-// --- BFS（幅優先探索）による最短経路の最初の1歩を取得する関数 ---
+function checkLevelUp() {
+    while (player.exp >= player.nextExp) {
+        player.exp -= player.nextExp; // 超えた分の経験値を持ち越し
+        player.level++;
+        player.nextExp = Math.floor(player.nextExp * 1.5);
+
+        // ステータス強化
+        player.maxHp += 5;
+        player.hp = player.maxHp;
+        player.atk = player.level;
+
+        addMessage(`レベルが ${player.level} に上がり、最大HPが増えた`);
+    }
+}
+
+// BFS
 function getNextStepBFS(startPos, targetPos, currentEnemy) {
     // 上下左右の移動ベクトル
     const dirs = [
@@ -170,7 +342,7 @@ function getNextStepBFS(startPos, targetPos, currentEnemy) {
         { x: 1, y: 0 }
     ];
 
-    // 訪問済みフラグ管理と親ノードの保持（経路復元用）
+    // 訪問済みフラグ管理と親ノードの保持
     const visited = Array.from({ length: MAP_HEIGHT }, () => Array(MAP_WIDTH).fill(null));
     const queue = [startPos];
     visited[startPos.y][startPos.x] = { x: startPos.x, y: startPos.y };
@@ -198,8 +370,12 @@ function getNextStepBFS(startPos, targetPos, currentEnemy) {
 
             // 壁なら移動不可
             if (map[ny][nx] === 1) continue;
+            // 階段があるマスには移動できない
+            if (stairs.x === nx && stairs.y === ny) continue;
+            // アイテムがあるマスには移動できない
+            if (items.some(item => item.x === nx && item.y === ny)) continue;
 
-            // 他の敵がいる場合は障害物扱い（ただし目的地がプレイヤーの場合は通る）
+            // 他の敵がいる場合
             let isBlockedByEnemy = false;
             if (!(nx === targetPos.x && ny === targetPos.y)) {
                 for (let other of enemies) {
@@ -224,7 +400,7 @@ function getNextStepBFS(startPos, targetPos, currentEnemy) {
     let curr = targetPos;
     let parent = visited[curr.y][curr.x];
 
-    // スタート地点のすぐ次の1マス（最初の一歩）を探す
+    // スタート地点の次の1マスを探す
     while (parent && !(parent.x === startPos.x && parent.y === startPos.y)) {
         curr = parent;
         parent = visited[curr.y][curr.x];
@@ -242,14 +418,19 @@ document.addEventListener("keydown", function(event) {
     else if (event.key === "ArrowDown") nextY++;
     else if (event.key === "ArrowLeft") nextX--;
     else if (event.key === "ArrowRight") nextX++;
+    // キー入力のなかに数字キーを追加
+    else if (event.key >= "1" && event.key <= "6") {
+        let index = parseInt(event.key) - 1;
+        useItem(index);
+    }
     else if (event.code === "Space") {
         event.preventDefault(); // 画面のスクロール防止
         if (player.hp < player.maxHp) {
             if (player.hunger > 0){
                 player.hp = Math.min(player.maxHp, player.hp + 1);
-                addMessage("その場にとどまりHPが1回復した。");}     
+                addMessage("その場にとどまりHPが1回復した");}     
         } else {
-            addMessage("その場にとどまった。");
+            addMessage("その場にとどまった");
         }
 }
     else if (event.key === "Enter") {
@@ -258,11 +439,11 @@ document.addEventListener("keydown", function(event) {
             changeRandomMap();
 
             if (floor > maxFloor) {
-                alert("ゲームクリア！おめでとう！");
+                alert("ゲームクリア");
                 location.reload();
                 return;
             }
-            addMessage(`${floor}階に降りた！`);
+            addMessage(`${floor}階に降りた`);
 
             // プレイヤーと階段を安全な場所に配置
             let pPos = getRandomEmptyPosition();
@@ -275,23 +456,47 @@ document.addEventListener("keydown", function(event) {
 
             // 敵の再配置
             enemies.length = 0;
-            let count = Math.min(floor, 4);
+            let count = Math.min(floor, 7);
             for (let i = 0; i < count; i++) {
                 let ePos = getRandomEmptyPosition();
-                enemies.push({ x: ePos.x, y: ePos.y, hp: 3, attack: 1 });
+                // 50%の確率で遠距離敵(type: "ranged")を生成
+                let isRanged = Math.random() < 0.5;
+                let enemyLevel = floor;
+                enemies.push({ 
+                    x: ePos.x, 
+                    y: ePos.y, 
+                    level: enemyLevel,
+                    hp: 3 + (enemyLevel - 1) * 2,
+                    attack: Math.max(1, Math.floor(enemyLevel / 2)),
+                    exp: enemyLevel + 1,
+                    type: isRanged ? "ranged" : "melee", // 敵のタイプ
+                    symbol: isRanged ? "S" : "E"        // 画面上の表示文字
+                });
             }
-
             // アイテムの再配置
             items.length = 0;
-            let iPos = getRandomEmptyPosition();
-            items.push({ x: iPos.x, y: iPos.y, type: "potion", heal: 5 });
+            for (let i = 0;  i < Math.min(floor, 5); i++){
+                    let iPos = getRandomEmptyPosition();
+                    let newItemType = Math.random() < 0.5 ? "potion" : "food";
+                    let newItemName = newItemType === "potion" ? "回復薬" : "貝";
+                    items.push({ 
+                    x: iPos.x, 
+                    y: iPos.y, 
+                    type: newItemType, 
+                    name: newItemName, 
+                    restore: 100 
+            });}
+
         } else {
-            addMessage("ここには階段がない！");
+            addMessage("ここには階段がない");
         }
         drawGame();
         return;
     } else {
         return;
+    }
+    if (map[nextY][nextX] === 1){
+        return
     }
 
     // 移動先の壁・敵判定
@@ -299,69 +504,151 @@ document.addEventListener("keydown", function(event) {
         let hitEnemy = enemies.find(e => e.hp > 0 && e.x === nextX && e.y === nextY);
 
         if (hitEnemy) {
-            hitEnemy.hp--;
-            addMessage(`敵に攻撃！ 残りHP: ${hitEnemy.hp}`);
-            if (hitEnemy.hp <= 0) addMessage("敵を倒した！");
+            hitEnemy.hp -= player.atk;
+            addMessage(`敵に攻撃。残りHP: ${hitEnemy.hp}`);
+            if (hitEnemy.hp <= 0){
+                player.exp += hitEnemy.exp;
+                checkLevelUp()
+                addMessage("敵を倒した");;}
         } else {
+            // プレイヤーが移動
             player.x = nextX;
             player.y = nextY;
 
             // アイテム取得判定
             for (let i = items.length - 1; i >= 0; i--) {
                 if (items[i].x === player.x && items[i].y === player.y) {
-                    player.hp = Math.min(player.maxHp, player.hp + items[i].heal);
-                    addMessage("回復薬を飲んだ！ HP回復！");
-                    items.splice(i, 1); //リストから消す
+                // カバンの容量制限をチェックする場合
+                    if (player.inventory.length >= 6) {
+                        addMessage("持ちがいっぱいで拾えない");
+                        break;
+                    }
+
+                    // カバンに追加
+                    player.inventory.push(items[i]);
+                    addMessage(`${items[i].name}を拾った`);
+                    
+                    // マップ上のアイテムを消す
+                    items.splice(i, 1);
                 }
             }
         }
+    }// 敵のターン
+        // 1歩歩くごとに 10% の確率で新しい敵が近くに出現
+    if (Math.random() < 0.1 && enemies.length < 20) { // 最大6体まで
+        let ePos = getRandomEmptyPosition();
+        let isRanged = Math.random() < 0.5;
+        let enemyLevel = floor;
+        enemies.push({
+            x: ePos.x,
+            y: ePos.y,
+            level: enemyLevel,
+            hp: 3 + (enemyLevel - 1) * 2,
+            attack: Math.max(1, Math.floor(enemyLevel / 2)),
+            exp: enemyLevel + 1,
+            type: isRanged ? "ranged" : "melee",
+            symbol: isRanged ? "S" : "E"
+        });
+        addMessage("どこかで敵が現れた");
     }
-// --- 敵のターン（移動＆攻撃） ---
     for (let enemy of enemies) {
         if (enemy.hp <= 0) continue;
 
         let dx = player.x - enemy.x;
         let dy = player.y - enemy.y;
+        let dist = Math.abs(dx) + Math.abs(dy); // 距離の計算
 
-        // プレイヤーと隣接している（上下左右のどこか）なら攻撃！
+        // 1. プレイヤーと隣接しているなら近接攻撃
         if ((Math.abs(dx) === 1 && dy === 0) || (dx === 0 && Math.abs(dy) === 1)) {
             player.hp -= enemy.attack;
-            addMessage(`敵から ${enemy.attack} のダメージ！`);
+            let enemyName = enemy.symbol === "S" ? "スナイパー" : "敵";
+            addMessage(`${enemyName}から ${enemy.attack} のダメージ`);
             if (player.hp <= 0) {
                 player.hp = 0;
                 alert("ゲームオーバー");
                 location.reload();
                 return;
             }
-        } else {
-            // BFSを使ってプレイヤーへの「次の一歩」を算出する
+        } 
+        // 2. 遠距離タイプかつ、縦か横の直線上、かつ距離が3マス以内なら遠距離攻撃
+        else if (enemy.type === "ranged" && (dx === 0 || dy === 0) && dist <= 2) {
+            // 途中に壁がないかチェックする
+            let canSee = true;
+            let stepX = dx === 0 ? 0 : (dx > 0 ? 1 : -1);
+            let stepY = dy === 0 ? 0 : (dy > 0 ? 1 : -1);
+            let checkX = enemy.x + stepX;
+            let checkY = enemy.y + stepY;
+
+            while (checkX !== player.x || checkY !== player.y) {
+                if (map[checkY][checkX] === 1) { // 途中に壁があれば攻撃できない
+                    canSee = false;
+                    break;
+                }
+                checkX += stepX;
+                checkY += stepY;
+            }
+
+            if (canSee) {
+                player.hp -= enemy.attack;
+                addMessage(`スナイパーの遠距離攻撃。 ${enemy.attack} のダメージ`);
+                if (player.hp <= 0) {
+                    player.hp = 0;
+                    alert("ゲームオーバー");
+                    location.reload();
+                    return;
+                }
+                continue; // 遠距離攻撃したらこの敵のターンは終了
+            } else {
+                // 壁があって攻撃できない場合は近づく処理へ進む
+                const nextStep = getNextStepBFS({ x: enemy.x, y: enemy.y }, { x: player.x, y: player.y }, enemy);
+                if (nextStep && !(nextStep.x === player.x && nextStep.y === player.y)) {
+                    enemy.x = nextStep.x;
+                    enemy.y = nextStep.y;
+                }
+            }
+        } 
+        // 3. どちらでもない場合
+        else {
             const nextStep = getNextStepBFS({ x: enemy.x, y: enemy.y }, { x: player.x, y: player.y }, enemy);
 
-            // 移動先が見つかり、かつプレイヤーの位置ではない（重ならない）場合に移動
+            // 移動先が見つかり、かつプレイヤーの位置ではない場合
             if (nextStep && !(nextStep.x === player.x && nextStep.y === player.y)) {
                 enemy.x = nextStep.x;
                 enemy.y = nextStep.y;
             }
         }
     }
-
-    // --- お腹が減る処理（1ターン経過） ---
+    // お腹が減る処理
     player.hunger--;
     if (player.hunger <= 0) {
         player.hunger = 0;
-        player.hp--; // お腹が0のときはHPが減る！
-        addMessage("お腹が空いて力が出ない…！HPが減った！");
+        player.hp--; // お腹が0のときはHPが減る
+        addMessage("お腹が空いてHPが減った");
         if (player.hp <= 0) {
             player.hp = 0;
-            alert("飢え死にしてしまった…ゲームオーバー！");
+            alert("飢え死にした");
             location.reload();
             return;
         }
     } else if (player.hunger === 20) {
-        addMessage("お腹がグーッと鳴った。何か食べ物を見つけないと……！");
+        addMessage("何か食べ物を見つけないと…");
     }
     drawGame();
 });
+const helpButton = document.getElementById("help-button");
+const helpPanel = document.getElementById("help-panel");
+const closeHelp = document.getElementById("close-help");
 
-// --- 初回起動 ---
+// ？ボタンを押したとき
+helpButton.addEventListener("click", function() {
+    helpPanel.style.display = "block";
+});
+
+// 閉じるボタンを押したとき
+closeHelp.addEventListener("click", function() {
+    helpPanel.style.display = "none";
+});
+
+// 初回
 drawGame();
+

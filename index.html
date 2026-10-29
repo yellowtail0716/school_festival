@@ -9,21 +9,52 @@
 <body>
 
     <div id="game-container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh;">
-        <h1>簡ローグライク</h1>
-        
-        <!-- ステータス表示 -->
-        <div id="status">
-            HP: <span id="hp">10/10</span> | 満腹度: <span id="hunger">100/100</span> | 階層: <span id="floor">1</span>F / 5F
+        <h1>ローグライク</h1>
+        <button id="help-button">？</button>
+
+        <div id="help-panel" style="display: none;">
+            <h2>遊び方</h2>
+            <p>矢印キー：移動</p>
+            <p>敵のいるマスに移動：攻撃</p>
+            <p>スペースキー：その場にとどまり体力回復</p>
+            <p>数字キー：アイテムを使う</p>
+            <p>階段の上でEnter：次の階へ進む</p>
+            <p>敵やアイテムは階層ごとに増えていく</p>
+            <P>20階にたどり着け</P>
+            <button id="close-help">閉じる</button>
+        </div>
+        <button id="encyclopediaButton" title="図鑑を開く">
+            図鑑
+        </button>
+        <div id="encyclopediaPanel" class="encyclopedia-panel">
+            <button id="closeEncyclopedia">x</button>
+
+            <h2>図鑑</h2>
+
+            <div class="encyclopedia-tabs">
+                <button id="monsterTab">モンスター</button>
+                <button id="itemTab">アイテム</button>
+            </div>
+
+            <div id="encyclopediaContent">
+                ここに図鑑の内容を表示する
+            </div>
         </div>
 
+        <!-- ステータス表示 -->
+        <div id="status">
+            HP: <span id="hp">10/10</span> \ 満腹度: <span id="hunger">100/100</span> \ Lv: <span id="level">1</span> \ 経験値:<span id="exp">0</span>/<span id="nextExp">5</span> \ 階層: <span id="floor">1</span>F / 20F
+        </div>
+       <div id="inventory-box" style="margin-top: 10px; color: #fff; font-size: 13px; text-align: left;">
+            持ち物：<span id="inventoryList">なし</span>
+        </div>
         <!-- ゲームのマップを表示するボード -->
         <div id="board"></div>
 
         <!-- メッセージを表示するログ窓 -->
-        <div id="log-box" style="width: 400px; height: 80px; background: #252525; border: 1px solid #b3b6b3; margin-top: 10px; padding: 5px; text-align: left; font-size: 13px; overflow-y: auto; color: #23eb4f;">
+        <div id="log-box" style="width: 400px; height: 80px; background: #2d3d5f; border: 1px solid #b3b6b3; margin-top: 10px; padding: 5px; text-align: left; font-size: 13px; overflow-y: auto; color: #23eb4f;">
             ダンジョンに足を踏み入れた…
         </div>
-        <div id="message" style="margin-top: 5px; font-size: 14px; color: #0f0f0f;">矢印キーで移動、Spaceで足踏み(回復)、Enterで階段を降りる</div>
     </div>
     <script type="module" src="script.js"></script>
 </body>
