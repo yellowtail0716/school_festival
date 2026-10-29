@@ -15,7 +15,6 @@ const stairs = { x: -1, y: -1 };
 
 const enemies = [];
 const items = [];
-
 let floor = 1;
 const maxFloor = 5;
 
