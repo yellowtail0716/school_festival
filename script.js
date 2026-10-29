@@ -37,7 +37,7 @@ const VIEW_HEIGHT = 5;
 const itemData = [
     {
         name: "回復薬",
-        effect: "HPを2割回復する"
+        effect: "HPを4割回復する"
     },
     {
         name: "貝",
