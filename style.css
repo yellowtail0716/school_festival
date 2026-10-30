@@ -43,6 +43,7 @@ body {
     background: #fcfcfc;
     color: rgb(52, 63, 4);
     border-radius: 10px;
+    cursor: pointer;
 }
 
 
@@ -74,10 +75,6 @@ body {
 
 #help-panel p {
     margin: 10px 0;
-}
-
-#close-help {
-    cursor: pointer;
 }
 
 .character-image {
