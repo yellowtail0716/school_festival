@@ -418,6 +418,10 @@ document.addEventListener("keydown", function(event) {
     else if (event.key === "ArrowDown") nextY++;
     else if (event.key === "ArrowLeft") nextX--;
     else if (event.key === "ArrowRight") nextX++;
+    else if (event.key === "r" || event.key === "R") {
+    location.reload();
+    return
+    }
     // キー入力のなかに数字キーを追加
     else if (event.key >= "1" && event.key <= "6") {
         let index = parseInt(event.key) - 1;
