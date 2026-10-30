@@ -39,6 +39,14 @@ body {
     font-size: 20px;
 }
 
+#close-help {
+    background: #fcfcfc;
+    color: rgb(52, 63, 4);
+    border-radius: 10px;
+}
+
+
+
 #help-button {
     position: fixed;
     top: 15px;
